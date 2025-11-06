@@ -4,8 +4,11 @@ export const highlightText = (
 ): string => {
   if (!searchText || !text) return text;
 
-  const regex = new RegExp(`(${escapeRegExp(searchText)})`, 'gi');
-  return text.replace(regex, '<mark class="bg-highlight/30 transition-colors">$1</mark>');
+  // Normalize whitespace
+  const normalizedSearch = searchText.trim().replace(/\s+/g, ' ');
+  const regex = new RegExp(`(${escapeRegExp(normalizedSearch)})`, 'i');
+  
+  return text.replace(regex, '<mark class="bg-yellow-300 dark:bg-yellow-600 transition-all duration-200 animate-pulse">$1</mark>');
 };
 
 export const escapeRegExp = (string: string): string => {

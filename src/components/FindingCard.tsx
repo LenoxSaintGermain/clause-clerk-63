@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Finding } from '@/types/finding.types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -7,31 +7,63 @@ import { Textarea } from '@/components/ui/textarea';
 import { Check, X, Edit3, Sparkles, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { geminiService } from '@/services/gemini.service';
+import { scrollToText } from '@/utils/highlighter';
 
 interface FindingCardProps {
   finding: Finding;
   onAccept: (id: string, redline: string) => void;
   onDismiss: (id: string) => void;
   onHighlight: (text: string) => void;
+  onUpdateRedline: (id: string, redline: string) => void;
+  isSelected?: boolean;
 }
 
-export const FindingCard = ({ finding, onAccept, onDismiss, onHighlight }: FindingCardProps) => {
+export const FindingCard = ({ 
+  finding, 
+  onAccept, 
+  onDismiss, 
+  onHighlight, 
+  onUpdateRedline,
+  isSelected 
+}: FindingCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedRedline, setEditedRedline] = useState(finding.suggestedRedline);
   const [isRefining, setIsRefining] = useState(false);
+  const [isAccepting, setIsAccepting] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setEditedRedline(finding.suggestedRedline);
+  }, [finding.suggestedRedline]);
+
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [isEditing]);
 
   const handleRefine = async () => {
-    const instruction = prompt('How would you like to refine this redline?');
-    if (!instruction) return;
+    const instruction = window.prompt(
+      'How would you like to refine this redline?\n\nPlease provide specific instructions (minimum 5 characters):'
+    );
+    
+    if (!instruction || instruction.trim().length < 5) {
+      if (instruction !== null) {
+        toast.error('Please provide more detailed instructions (at least 5 characters)');
+      }
+      return;
+    }
 
     setIsRefining(true);
     try {
       const refined = await geminiService.refineRedline(
         finding.originalText,
         editedRedline,
-        instruction
+        instruction.trim()
       );
       setEditedRedline(refined);
+      onUpdateRedline(finding.id, refined);
       toast.success('Redline refined successfully');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to refine');
@@ -41,16 +73,44 @@ export const FindingCard = ({ finding, onAccept, onDismiss, onHighlight }: Findi
   };
 
   const handleSaveEdit = () => {
-    onAccept(finding.id, editedRedline);
+    if (!editedRedline.trim()) {
+      toast.error('Redline cannot be empty');
+      return;
+    }
+    onUpdateRedline(finding.id, editedRedline);
     setIsEditing(false);
+  };
+
+  const handleAccept = async () => {
+    setIsAccepting(true);
+    // Scroll to text in viewer
+    scrollToText(finding.originalText, 'contract-viewer');
+    
+    // Small delay for visual feedback
+    setTimeout(() => {
+      onAccept(finding.id, editedRedline);
+      setIsAccepting(false);
+    }, 250);
+  };
+
+  const handleMouseEnter = () => {
+    onHighlight(finding.originalText);
+    scrollToText(finding.originalText, 'contract-viewer');
   };
 
   if (finding.status === 'dismissed') return null;
 
   return (
     <Card 
-      className="border-border hover:border-accent/50 transition-all duration-200 hover:shadow-md"
-      onMouseEnter={() => onHighlight(finding.originalText)}
+      ref={cardRef}
+      className={`border-border transition-all duration-250 ${
+        isAccepting ? 'animate-scale-out opacity-50' : 'animate-fade-in'
+      } ${
+        isSelected ? 'border-accent ring-2 ring-accent/20' : 'hover:border-accent/50'
+      } ${
+        finding.status === 'accepted' ? 'opacity-75' : 'hover:shadow-md'
+      }`}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={() => onHighlight('')}
     >
       <CardHeader className="pb-3">
@@ -94,11 +154,19 @@ export const FindingCard = ({ finding, onAccept, onDismiss, onHighlight }: Findi
             Suggested Redline
           </p>
           {isEditing ? (
-            <Textarea
-              value={editedRedline}
-              onChange={(e) => setEditedRedline(e.target.value)}
-              className="min-h-[100px] text-sm"
-            />
+            <>
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="outline" className="text-xs">
+                  Editing...
+                </Badge>
+              </div>
+              <Textarea
+                ref={textareaRef}
+                value={editedRedline}
+                onChange={(e) => setEditedRedline(e.target.value)}
+                className="min-h-[100px] text-sm border-accent focus:ring-accent"
+              />
+            </>
           ) : (
             <p className="text-sm text-foreground border-l-2 border-accent pl-3">
               {editedRedline}
@@ -142,11 +210,12 @@ export const FindingCard = ({ finding, onAccept, onDismiss, onHighlight }: Findi
             <>
               <Button
                 size="sm"
-                onClick={() => onAccept(finding.id, editedRedline)}
+                onClick={handleAccept}
+                disabled={isAccepting}
                 className="bg-accent hover:bg-accent/90"
               >
                 <Check className="w-4 h-4 mr-1" />
-                Accept
+                {isAccepting ? 'Accepting...' : 'Accept'}
               </Button>
               <Button
                 size="sm"

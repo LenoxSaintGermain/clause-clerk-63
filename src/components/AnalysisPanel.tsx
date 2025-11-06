@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Finding } from '@/types/finding.types';
 import { FindingCard } from './FindingCard';
+import { AcceptAllDialog } from './AcceptAllDialog';
 import { Button } from '@/components/ui/button';
-import { CheckCheck, FileSearch } from 'lucide-react';
+import { CheckCheck, FileSearch, Undo2 } from 'lucide-react';
 
 interface AnalysisPanelProps {
   findings: Finding[];
@@ -9,6 +11,10 @@ interface AnalysisPanelProps {
   onDismiss: (id: string) => void;
   onAcceptAll: () => void;
   onHighlight: (text: string) => void;
+  onUpdateRedline: (id: string, redline: string) => void;
+  selectedFindingId: string | null;
+  canUndo: boolean;
+  onUndo: () => void;
 }
 
 export const AnalysisPanel = ({ 
@@ -16,27 +22,54 @@ export const AnalysisPanel = ({
   onAccept, 
   onDismiss, 
   onAcceptAll,
-  onHighlight 
+  onHighlight,
+  onUpdateRedline,
+  selectedFindingId,
+  canUndo,
+  onUndo
 }: AnalysisPanelProps) => {
+  const [showAcceptAllDialog, setShowAcceptAllDialog] = useState(false);
   const pendingFindings = findings.filter(f => f.status === 'pending');
   const hasFindings = findings.length > 0;
   const hasPendingFindings = pendingFindings.length > 0;
+
+  const handleAcceptAllClick = () => {
+    setShowAcceptAllDialog(true);
+  };
+
+  const handleConfirmAcceptAll = () => {
+    setShowAcceptAllDialog(false);
+    onAcceptAll();
+  };
 
   return (
     <div className="h-full flex flex-col bg-card rounded-lg border border-border shadow-sm">
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-foreground">Analysis Results</h2>
-          {hasPendingFindings && (
-            <Button
-              onClick={onAcceptAll}
-              size="sm"
-              className="bg-accent hover:bg-accent/90"
-            >
-              <CheckCheck className="w-4 h-4 mr-2" />
-              Accept All ({pendingFindings.length})
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {canUndo && (
+              <Button
+                onClick={onUndo}
+                size="sm"
+                variant="outline"
+                className="hover:bg-accent/10"
+              >
+                <Undo2 className="w-4 h-4 mr-2" />
+                Undo All
+              </Button>
+            )}
+            {hasPendingFindings && (
+              <Button
+                onClick={handleAcceptAllClick}
+                size="sm"
+                className="bg-accent hover:bg-accent/90"
+              >
+                <CheckCheck className="w-4 h-4 mr-2" />
+                Accept All ({pendingFindings.length})
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -69,10 +102,19 @@ export const AnalysisPanel = ({
               onAccept={onAccept}
               onDismiss={onDismiss}
               onHighlight={onHighlight}
+              onUpdateRedline={onUpdateRedline}
+              isSelected={selectedFindingId === finding.id}
             />
           ))
         )}
       </div>
+
+      <AcceptAllDialog
+        open={showAcceptAllDialog}
+        onOpenChange={setShowAcceptAllDialog}
+        onConfirm={handleConfirmAcceptAll}
+        count={pendingFindings.length}
+      />
     </div>
   );
 };

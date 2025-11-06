@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { ContractProvider, useContract } from '@/contexts/ContractContext';
 import { FileUploader } from '@/components/FileUploader';
 import { ContractViewer } from '@/components/ContractViewer';
 import { AnalysisPanel } from '@/components/AnalysisPanel';
@@ -6,21 +7,115 @@ import { GemSelector } from '@/components/GemSelector';
 import { ExportMenu } from '@/components/ExportMenu';
 import { ApiKeyDialog } from '@/components/ApiKeyDialog';
 import { Button } from '@/components/ui/button';
-import { ParsedDocument } from '@/types/document.types';
-import { Finding } from '@/types/finding.types';
 import { geminiService, GemPreset } from '@/services/gemini.service';
 import { documentService } from '@/services/document.service';
 import { downloadFile, exportToPdf } from '@/utils/export.utils';
 import { toast } from 'sonner';
 import { Sparkles, Scale } from 'lucide-react';
 
-const Index = () => {
-  const [document, setDocument] = useState<ParsedDocument | null>(null);
-  const [findings, setFindings] = useState<Finding[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [highlightedText, setHighlightedText] = useState('');
+const IndexContent = () => {
+  const {
+    state,
+    setDocument,
+    setFindings,
+    setAnalyzing,
+    setHighlightedText,
+    setSelectedFinding,
+    acceptFinding,
+    dismissFinding,
+    acceptAllFindings,
+    undoAcceptAll,
+    updateFindingRedline,
+  } = useContract();
+
   const [selectedGem, setSelectedGem] = useState<GemPreset>('balanced');
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(!geminiService.isInitialized());
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input/textarea
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modKey = isMac ? e.metaKey : e.ctrlKey;
+
+      // Cmd/Ctrl + A: Accept selected finding
+      if (modKey && e.key === 'a' && !e.shiftKey) {
+        e.preventDefault();
+        const selectedFinding = state.findings.find(
+          f => f.id === state.selectedFindingId && f.status === 'pending'
+        );
+        if (selectedFinding) {
+          acceptFinding(selectedFinding.id, selectedFinding.suggestedRedline);
+          toast.success('Redline accepted');
+        }
+      }
+
+      // Cmd/Ctrl + Shift + A: Accept all
+      if (modKey && e.shiftKey && e.key === 'A') {
+        e.preventDefault();
+        const pendingCount = state.findings.filter(f => f.status === 'pending').length;
+        if (pendingCount > 0) {
+          acceptAllFindings();
+          toast.success(`Applied ${pendingCount} redlines`);
+        }
+      }
+
+      // Escape: Clear highlight and selection
+      if (e.key === 'Escape') {
+        setHighlightedText('');
+        setSelectedFinding(null);
+      }
+
+      // Arrow Up: Select previous finding
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const pendingFindings = state.findings.filter(f => f.status === 'pending');
+        if (pendingFindings.length === 0) return;
+
+        const currentIndex = state.selectedFindingId
+          ? pendingFindings.findIndex(f => f.id === state.selectedFindingId)
+          : -1;
+        const prevIndex = currentIndex > 0 ? currentIndex - 1 : pendingFindings.length - 1;
+        const prevFinding = pendingFindings[prevIndex];
+        
+        setSelectedFinding(prevFinding.id);
+        setHighlightedText(prevFinding.originalText);
+      }
+
+      // Arrow Down: Select next finding
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const pendingFindings = state.findings.filter(f => f.status === 'pending');
+        if (pendingFindings.length === 0) return;
+
+        const currentIndex = state.selectedFindingId
+          ? pendingFindings.findIndex(f => f.id === state.selectedFindingId)
+          : -1;
+        const nextIndex = currentIndex < pendingFindings.length - 1 ? currentIndex + 1 : 0;
+        const nextFinding = pendingFindings[nextIndex];
+        
+        setSelectedFinding(nextFinding.id);
+        setHighlightedText(nextFinding.originalText);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    state.findings,
+    state.selectedFindingId,
+    acceptFinding,
+    acceptAllFindings,
+    setHighlightedText,
+    setSelectedFinding,
+  ]);
 
   const handleApiKeySubmit = (apiKey: string) => {
     geminiService.initialize(apiKey);
@@ -29,60 +124,49 @@ const Index = () => {
   };
 
   const handleAnalyze = async () => {
-    if (!document) return;
+    if (!state.document) return;
 
     if (!geminiService.isInitialized()) {
       setShowApiKeyDialog(true);
       return;
     }
 
-    setIsAnalyzing(true);
+    setAnalyzing(true);
     try {
       const instructions = selectedGem ? geminiService.getGemInstructions(selectedGem) : undefined;
-      const results = await geminiService.analyzeContract(document.text, instructions);
+      const results = await geminiService.analyzeContract(state.document.text, instructions);
       setFindings(results);
       toast.success(`Found ${results.length} potential issues`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Analysis failed');
     } finally {
-      setIsAnalyzing(false);
+      setAnalyzing(false);
     }
   };
 
-  const handleAcceptFinding = (id: string, redline: string) => {
-    setFindings(prev =>
-      prev.map(f => {
-        if (f.id === id) {
-          // Update document text
-          if (document) {
-            const updatedText = document.text.replace(f.originalText, redline);
-            setDocument({ ...document, text: updatedText });
-          }
-          return { ...f, status: 'accepted' as const, suggestedRedline: redline };
-        }
-        return f;
-      })
-    );
+  const handleAcceptFinding = useCallback((id: string, redline: string) => {
+    acceptFinding(id, redline);
     toast.success('Redline applied to contract');
-  };
+  }, [acceptFinding]);
 
-  const handleDismissFinding = (id: string) => {
-    setFindings(prev =>
-      prev.map(f => f.id === id ? { ...f, status: 'dismissed' as const } : f)
-    );
-  };
-
-  const handleAcceptAll = () => {
-    const pendingFindings = findings.filter(f => f.status === 'pending');
-    pendingFindings.forEach(finding => {
-      handleAcceptFinding(finding.id, finding.suggestedRedline);
+  const handleAcceptAll = useCallback(() => {
+    const pendingCount = state.findings.filter(f => f.status === 'pending').length;
+    acceptAllFindings();
+    toast.success(`Applied ${pendingCount} redline${pendingCount !== 1 ? 's' : ''} to contract`, {
+      action: state.previousState ? {
+        label: 'Undo',
+        onClick: () => {
+          undoAcceptAll();
+          toast.success('Changes reverted');
+        }
+      } : undefined
     });
-  };
+  }, [state.findings, state.previousState, acceptAllFindings, undoAcceptAll]);
 
   const handleExport = async (format: 'docx' | 'pdf' | 'txt') => {
-    if (!document) return;
+    if (!state.document) return;
 
-    const acceptedFindings = findings
+    const acceptedFindings = state.findings
       .filter(f => f.status === 'accepted')
       .map(f => ({
         original: f.originalText,
@@ -91,17 +175,22 @@ const Index = () => {
 
     try {
       if (format === 'docx') {
-        const blob = await documentService.exportToDocx(document.text, acceptedFindings);
-        downloadFile(blob, `${document.fileName.replace(/\.[^/.]+$/, '')}_redlined.docx`);
+        const blob = await documentService.exportToDocx(
+          state.originalContract,
+          acceptedFindings
+        );
+        downloadFile(blob, `${state.document.fileName.replace(/\.[^/.]+$/, '')}_redlined.docx`);
       } else if (format === 'txt') {
-        const text = await documentService.exportToText(document.text, acceptedFindings);
-        downloadFile(text, `${document.fileName.replace(/\.[^/.]+$/, '')}_redlined.txt`);
+        const text = await documentService.exportToText(
+          state.originalContract,
+          acceptedFindings
+        );
+        downloadFile(text, `${state.document.fileName.replace(/\.[^/.]+$/, '')}_redlined.txt`);
       } else if (format === 'pdf') {
-        let text = document.text;
-        acceptedFindings.forEach(({ original, replacement }) => {
-          text = text.replace(original, replacement);
-        });
-        await exportToPdf(text, `${document.fileName.replace(/\.[^/.]+$/, '')}_redlined.pdf`);
+        await exportToPdf(
+          state.currentContract,
+          `${state.document.fileName.replace(/\.[^/.]+$/, '')}_redlined.pdf`
+        );
       }
       toast.success('Document exported successfully');
     } catch (error) {
@@ -123,24 +212,24 @@ const Index = () => {
               </div>
             </div>
 
-            {document && (
+            {state.document && (
               <div className="flex items-center gap-3">
                 <GemSelector
                   selectedGem={selectedGem}
                   onSelect={setSelectedGem}
-                  disabled={isAnalyzing}
+                  disabled={state.isAnalyzing}
                 />
                 <Button
                   onClick={handleAnalyze}
-                  disabled={isAnalyzing}
+                  disabled={state.isAnalyzing}
                   className="bg-accent hover:bg-accent/90"
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
-                  {isAnalyzing ? 'Analyzing...' : 'Analyze Contract'}
+                  {state.isAnalyzing ? 'Analyzing...' : 'Analyze Contract'}
                 </Button>
                 <ExportMenu
                   onExport={handleExport}
-                  disabled={findings.filter(f => f.status === 'accepted').length === 0}
+                  disabled={state.findings.filter(f => f.status === 'accepted').length === 0}
                 />
               </div>
             )}
@@ -150,26 +239,30 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        {!document ? (
+        {!state.document ? (
           <div className="max-w-2xl mx-auto">
             <FileUploader
               onFileLoaded={setDocument}
-              isProcessing={isAnalyzing}
+              isProcessing={state.isAnalyzing}
             />
           </div>
         ) : (
           <div className="grid lg:grid-cols-[40%_1fr] gap-6 h-[calc(100vh-180px)]">
             <ContractViewer
-              text={document.text}
-              fileName={document.fileName}
-              highlightedText={highlightedText}
+              text={state.currentContract}
+              fileName={state.document.fileName}
+              highlightedText={state.highlightedText}
             />
             <AnalysisPanel
-              findings={findings}
+              findings={state.findings}
               onAccept={handleAcceptFinding}
-              onDismiss={handleDismissFinding}
+              onDismiss={dismissFinding}
               onAcceptAll={handleAcceptAll}
               onHighlight={setHighlightedText}
+              onUpdateRedline={updateFindingRedline}
+              selectedFindingId={state.selectedFindingId}
+              canUndo={state.previousState !== null}
+              onUndo={undoAcceptAll}
             />
           </div>
         )}
@@ -177,6 +270,14 @@ const Index = () => {
 
       <ApiKeyDialog open={showApiKeyDialog} onSubmit={handleApiKeySubmit} />
     </div>
+  );
+};
+
+const Index = () => {
+  return (
+    <ContractProvider>
+      <IndexContent />
+    </ContractProvider>
   );
 };
 
