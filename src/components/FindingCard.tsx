@@ -15,6 +15,7 @@ interface FindingCardProps {
   onDismiss: (id: string) => void;
   onHighlight: (text: string) => void;
   onUpdateRedline: (id: string, redline: string) => void;
+  onSelect?: (id: string) => void;
   isSelected?: boolean;
 }
 
@@ -24,6 +25,7 @@ export const FindingCard = ({
   onDismiss, 
   onHighlight, 
   onUpdateRedline,
+  onSelect,
   isSelected 
 }: FindingCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -120,6 +122,11 @@ export const FindingCard = ({
 
   const handleMouseEnter = () => {
     onHighlight(finding.originalText);
+  };
+
+  const handleSelect = () => {
+    onSelect?.(finding.id);
+    onHighlight(finding.originalText);
     scrollToText(finding.originalText, 'contract-viewer');
   };
 
@@ -128,13 +135,14 @@ export const FindingCard = ({
   return (
     <Card 
       ref={cardRef}
-      className={`border-border transition-all duration-250 ${
+      className={`border-border transition-all duration-250 cursor-pointer ${
         isAccepting ? 'animate-scale-out opacity-50' : 'animate-fade-in'
       } ${
         isSelected ? 'border-accent ring-2 ring-accent/20' : 'hover:border-accent/50'
       } ${
         finding.status === 'accepted' ? 'opacity-75' : 'hover:shadow-md'
       }`}
+      onClick={handleSelect}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => onHighlight('')}
     >

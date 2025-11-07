@@ -167,6 +167,14 @@ const IndexContent = () => {
     });
   }, [state.findings, state.previousState, acceptAllFindings, undoAcceptAll]);
 
+  const handleSelectFinding = useCallback((id: string) => {
+    setSelectedFinding(id);
+    const finding = state.findings.find(f => f.id === id);
+    if (finding) {
+      setHighlightedText(finding.originalText);
+    }
+  }, [state.findings, setSelectedFinding, setHighlightedText]);
+
   const handleExport = async (format: 'docx' | 'pdf' | 'txt') => {
     if (!state.document) return;
 
@@ -262,7 +270,7 @@ const IndexContent = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
+      <main className={`container mx-auto px-4 py-6 ${state.document ? 'overflow-hidden' : ''}`}>
         {!state.document ? (
           <div className="max-w-2xl mx-auto">
             <FileUploader
@@ -284,6 +292,7 @@ const IndexContent = () => {
               onAcceptAll={handleAcceptAll}
               onHighlight={setHighlightedText}
               onUpdateRedline={updateFindingRedline}
+              onSelect={handleSelectFinding}
               selectedFindingId={state.selectedFindingId}
               canUndo={state.previousState !== null}
               onUndo={undoAcceptAll}

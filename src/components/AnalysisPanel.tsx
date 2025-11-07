@@ -12,6 +12,7 @@ interface AnalysisPanelProps {
   onAcceptAll: () => void;
   onHighlight: (text: string) => void;
   onUpdateRedline: (id: string, redline: string) => void;
+  onSelect: (id: string) => void;
   selectedFindingId: string | null;
   canUndo: boolean;
   onUndo: () => void;
@@ -24,6 +25,7 @@ export const AnalysisPanel = ({
   onAcceptAll,
   onHighlight,
   onUpdateRedline,
+  onSelect,
   selectedFindingId,
   canUndo,
   onUndo
@@ -103,6 +105,7 @@ export const AnalysisPanel = ({
               onDismiss={onDismiss}
               onHighlight={onHighlight}
               onUpdateRedline={onUpdateRedline}
+              onSelect={onSelect}
               isSelected={selectedFindingId === finding.id}
             />
           ))
