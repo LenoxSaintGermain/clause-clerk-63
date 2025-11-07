@@ -30,7 +30,7 @@ export const ContractViewer = ({ text, fileName, highlightedText }: ContractView
       
       <div 
         id="contract-viewer"
-        className="flex-1 overflow-y-auto p-6 space-y-4"
+        className="flex-1 overflow-y-auto overscroll-contain p-6 space-y-4"
       >
         {paragraphs.map((para, index) => (
           <p

@@ -73,7 +73,7 @@ export const AnalysisPanel = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4">
         {!hasFindings ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
             <FileSearch className="w-16 h-16 text-muted-foreground mb-4" />

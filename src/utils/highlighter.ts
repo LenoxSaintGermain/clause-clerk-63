@@ -41,7 +41,10 @@ export const scrollToText = (text: string, containerId: string): void => {
   const elements = container.querySelectorAll('*');
   for (const element of Array.from(elements)) {
     if (element.textContent?.includes(text)) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const elementRect = (element as HTMLElement).offsetTop;
+      const containerHeight = container.clientHeight;
+      const targetScroll = elementRect - containerHeight / 2;
+      container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
       break;
     }
   }
