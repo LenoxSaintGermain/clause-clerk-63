@@ -1,10 +1,11 @@
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
+import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { ParsedDocument } from '@/types/document.types';
 
-// Configure PDF.js worker with reliable CDN
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
+// Configure PDF.js worker with bundled asset (same-origin, reliable)
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
 class DocumentService {
   async parseFile(file: File): Promise<ParsedDocument> {
@@ -39,10 +40,10 @@ class DocumentService {
   }
 
   private async parsePdf(file: File): Promise<ParsedDocument> {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
+    const arrayBuffer = await file.arrayBuffer();
+    
+    const tryParse = async () => {
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      
       let fullText = '';
       
       for (let i = 1; i <= pdf.numPages; i++) {
@@ -54,14 +55,32 @@ class DocumentService {
         fullText += pageText + '\n\n';
       }
       
+      return fullText.trim();
+    };
+
+    try {
+      const text = await tryParse();
       return {
-        text: fullText.trim(),
+        text,
         fileName: file.name,
         fileType: '.pdf'
       };
     } catch (error) {
-      console.error('PDF parsing error:', error);
-      throw new Error('Failed to parse PDF. Please try uploading a DOCX or TXT file instead.');
+      // Fallback to CDN worker if bundled version fails
+      try {
+        console.warn('PDF worker failed, retrying with CDN worker...', error);
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 
+          `https://unpkg.com/pdfjs-dist@${pdfjsLib.version || '5.4.394'}/build/pdf.worker.min.mjs`;
+        const text = await tryParse();
+        return {
+          text,
+          fileName: file.name,
+          fileType: '.pdf'
+        };
+      } catch (error2) {
+        console.error('PDF parsing error:', error2);
+        throw new Error('Failed to parse PDF. If this PDF is scanned or image-based, please upload a DOCX or TXT instead.');
+      }
     }
   }
 
