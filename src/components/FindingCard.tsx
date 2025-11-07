@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Check, X, Edit3, Sparkles, AlertTriangle } from 'lucide-react';
+import { Check, X, Edit3, Sparkles, AlertTriangle, Locate } from 'lucide-react';
 import { toast } from 'sonner';
 import { geminiService } from '@/services/gemini.service';
 import { scrollToText } from '@/utils/highlighter';
@@ -159,12 +159,26 @@ export const FindingCard = ({
               </Badge>
             )}
           </div>
-          {finding.status === 'accepted' && (
-            <Badge className="bg-success text-white">
-              <Check className="w-3 h-3 mr-1" />
-              Accepted
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-accent text-accent hover:bg-accent hover:text-white transition-all hover:scale-105"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSelect();
+              }}
+            >
+              <Locate className="w-3.5 h-3.5 mr-1.5" />
+              Jump to Clause
+            </Button>
+            {finding.status === 'accepted' && (
+              <Badge className="bg-success text-white">
+                <Check className="w-3 h-3 mr-1" />
+                Accepted
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
 
