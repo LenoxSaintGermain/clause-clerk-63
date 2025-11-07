@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, forwardRef } from 'react';
 import { Finding } from '@/types/finding.types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -7,7 +7,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Check, X, Edit3, Sparkles, AlertTriangle, Locate } from 'lucide-react';
 import { toast } from 'sonner';
 import { geminiService } from '@/services/gemini.service';
-import { scrollToText } from '@/utils/highlighter';
 
 interface FindingCardProps {
   finding: Finding;
@@ -16,18 +15,20 @@ interface FindingCardProps {
   onHighlight: (text: string) => void;
   onUpdateRedline: (id: string, redline: string) => void;
   onSelect?: (id: string) => void;
+  onSelectBlock?: (text: string) => void;
   isSelected?: boolean;
 }
 
-export const FindingCard = ({ 
+export const FindingCard = forwardRef<HTMLDivElement, FindingCardProps>(({
   finding, 
   onAccept, 
   onDismiss, 
   onHighlight, 
   onUpdateRedline,
   onSelect,
+  onSelectBlock,
   isSelected 
-}: FindingCardProps) => {
+}, ref) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedRedline, setEditedRedline] = useState(finding.suggestedRedline);
   const [isRefining, setIsRefining] = useState(false);
@@ -110,8 +111,6 @@ export const FindingCard = ({
 
   const handleAccept = async () => {
     setIsAccepting(true);
-    // Scroll to text in viewer
-    scrollToText(finding.originalText, 'contract-viewer');
     
     // Small delay for visual feedback
     setTimeout(() => {
@@ -127,7 +126,7 @@ export const FindingCard = ({
   const handleSelect = () => {
     onSelect?.(finding.id);
     onHighlight(finding.originalText);
-    scrollToText(finding.originalText, 'contract-viewer');
+    onSelectBlock?.(finding.originalText);
   };
 
   if (finding.status === 'dismissed') return null;
@@ -300,4 +299,6 @@ export const FindingCard = ({
       </CardContent>
     </Card>
   );
-};
+});
+
+FindingCard.displayName = 'FindingCard';

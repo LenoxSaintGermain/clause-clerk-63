@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ContractProvider, useContract } from '@/contexts/ContractContext';
 import { FileUploader } from '@/components/FileUploader';
 import { BlockedContractViewer } from '@/components/BlockedContractViewer';
@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { geminiService, GemPreset } from '@/services/gemini.service';
 import { documentService } from '@/services/document.service';
 import { downloadFile, exportToPdf } from '@/utils/export.utils';
+import { findBlockContainingText } from '@/utils/block-parser.utils';
 import { toast } from 'sonner';
 import { Sparkles, Scale, GitCompare, FileText } from 'lucide-react';
 
@@ -36,6 +37,7 @@ const IndexContent = () => {
 
   const [selectedGem, setSelectedGem] = useState<GemPreset>('balanced');
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(!geminiService.isInitialized());
+  const blockRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -177,6 +179,13 @@ const IndexContent = () => {
     }
   }, [state.findings, setSelectedFinding, setHighlightedText]);
 
+  const handleSelectBlock = useCallback((text: string) => {
+    const targetBlock = findBlockContainingText(state.contractBlocks, text);
+    if (targetBlock) {
+      setSelectedBlock(targetBlock.id);
+    }
+  }, [state.contractBlocks, setSelectedBlock]);
+
   const handleExport = async (format: 'docx' | 'pdf' | 'txt') => {
     if (!state.document) return;
 
@@ -288,6 +297,13 @@ const IndexContent = () => {
               highlightedText={state.highlightedText}
               selectedBlockId={state.selectedBlockId}
               onBlocksGenerated={setContractBlocks}
+              onBlockRefChange={(blockId, ref) => {
+                if (ref) {
+                  blockRefs.current.set(blockId, ref);
+                } else {
+                  blockRefs.current.delete(blockId);
+                }
+              }}
             />
             <AnalysisPanel
               findings={state.findings}
@@ -297,9 +313,12 @@ const IndexContent = () => {
               onHighlight={setHighlightedText}
               onUpdateRedline={updateFindingRedline}
               onSelect={handleSelectFinding}
+              onSelectBlock={handleSelectBlock}
               selectedFindingId={state.selectedFindingId}
               canUndo={state.previousState !== null}
               onUndo={undoAcceptAll}
+              blockRefs={blockRefs.current}
+              contractBlocks={state.contractBlocks}
             />
           </div>
         ) : (

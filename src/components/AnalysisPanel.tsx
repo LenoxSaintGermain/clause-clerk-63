@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Finding } from '@/types/finding.types';
+import { ContractBlock } from '@/types/document.types';
 import { FindingCard } from './FindingCard';
 import { AcceptAllDialog } from './AcceptAllDialog';
+import { ConnectionLine } from './ConnectionLine';
 import { Button } from '@/components/ui/button';
 import { CheckCheck, FileSearch, Undo2 } from 'lucide-react';
+import { useConnectionCoords } from '@/hooks/use-connection-coords';
 
 interface AnalysisPanelProps {
   findings: Finding[];
@@ -13,9 +16,12 @@ interface AnalysisPanelProps {
   onHighlight: (text: string) => void;
   onUpdateRedline: (id: string, redline: string) => void;
   onSelect: (id: string) => void;
+  onSelectBlock: (text: string) => void;
   selectedFindingId: string | null;
   canUndo: boolean;
   onUndo: () => void;
+  blockRefs?: Map<string, HTMLDivElement>;
+  contractBlocks?: ContractBlock[];
 }
 
 export const AnalysisPanel = ({ 
@@ -26,14 +32,58 @@ export const AnalysisPanel = ({
   onHighlight,
   onUpdateRedline,
   onSelect,
+  onSelectBlock,
   selectedFindingId,
   canUndo,
-  onUndo
+  onUndo,
+  blockRefs,
+  contractBlocks
 }: AnalysisPanelProps) => {
   const [showAcceptAllDialog, setShowAcceptAllDialog] = useState(false);
+  const findingCardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
   const pendingFindings = findings.filter(f => f.status === 'pending');
   const hasFindings = findings.length > 0;
   const hasPendingFindings = pendingFindings.length > 0;
+
+  // Get refs for selected finding and target block
+  const selectedFindingRef = selectedFindingId 
+    ? findingCardRefs.current.get(selectedFindingId) 
+    : null;
+  
+  const selectedFinding = findings.find(f => f.id === selectedFindingId);
+  const targetBlockId = selectedFinding && contractBlocks && blockRefs
+    ? contractBlocks.find(b => 
+        b.content.toLowerCase().includes(selectedFinding.originalText.toLowerCase())
+      )?.id
+    : null;
+  
+  const targetBlockRef = targetBlockId && blockRefs
+    ? blockRefs.get(targetBlockId) || null
+    : null;
+
+  // Calculate connection coordinates
+  const sourceRef = useRef<HTMLElement | null>(null);
+  const targetRef = useRef<HTMLElement | null>(null);
+  
+  useEffect(() => {
+    sourceRef.current = selectedFindingRef;
+    targetRef.current = targetBlockRef;
+  }, [selectedFindingRef, targetBlockRef]);
+
+  const coords = useConnectionCoords(
+    sourceRef as React.RefObject<HTMLElement>,
+    targetRef as React.RefObject<HTMLElement>,
+    !!selectedFindingId && !!targetBlockRef
+  );
+
+  // Handle responsive
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleAcceptAllClick = () => {
     setShowAcceptAllDialog(true);
@@ -45,7 +95,13 @@ export const AnalysisPanel = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-card rounded-lg border border-border shadow-sm">
+    <>
+      <ConnectionLine 
+        coords={coords} 
+        isVisible={!!selectedFindingId && !!targetBlockRef} 
+        isMobile={isMobile}
+      />
+      <div className="h-full flex flex-col bg-card rounded-lg border border-border shadow-sm">
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-foreground">Analysis Results</h2>
@@ -100,12 +156,20 @@ export const AnalysisPanel = ({
           findings.map(finding => (
             <FindingCard
               key={finding.id}
+              ref={(el) => {
+                if (el) {
+                  findingCardRefs.current.set(finding.id, el);
+                } else {
+                  findingCardRefs.current.delete(finding.id);
+                }
+              }}
               finding={finding}
               onAccept={onAccept}
               onDismiss={onDismiss}
               onHighlight={onHighlight}
               onUpdateRedline={onUpdateRedline}
               onSelect={onSelect}
+              onSelectBlock={onSelectBlock}
               isSelected={selectedFindingId === finding.id}
             />
           ))
@@ -118,6 +182,7 @@ export const AnalysisPanel = ({
         onConfirm={handleConfirmAcceptAll}
         count={pendingFindings.length}
       />
-    </div>
+      </div>
+    </>
   );
 };

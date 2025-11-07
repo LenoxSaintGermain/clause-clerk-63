@@ -12,6 +12,7 @@ interface BlockedContractViewerProps {
   highlightedText?: string;
   selectedBlockId?: string | null;
   onBlocksGenerated?: (blocks: ContractBlockType[]) => void;
+  onBlockRefChange?: (blockId: string, ref: HTMLDivElement | null) => void;
 }
 
 export const BlockedContractViewer = ({
@@ -19,7 +20,8 @@ export const BlockedContractViewer = ({
   fileName,
   highlightedText,
   selectedBlockId,
-  onBlocksGenerated
+  onBlocksGenerated,
+  onBlockRefChange
 }: BlockedContractViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const blockRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -93,6 +95,7 @@ export const BlockedContractViewer = ({
     } else {
       blockRefs.current.delete(blockId);
     }
+    onBlockRefChange?.(blockId, el);
   };
 
   return (
