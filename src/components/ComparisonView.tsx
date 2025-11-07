@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { diffService } from '@/services/diff.service';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { FileText, GitCompare } from 'lucide-react';
@@ -12,8 +12,38 @@ interface ComparisonViewProps {
 
 export const ComparisonView = ({ originalContract, currentContract, fileName }: ComparisonViewProps) => {
   const [diffHtml, setDiffHtml] = useState('');
+  const leftPanelRef = useRef<HTMLDivElement>(null);
+  const rightPanelRef = useRef<HTMLDivElement>(null);
+  const syncingRef = useRef(false);
+  const rafRef = useRef<number | null>(null);
 
   const hasChanges = originalContract !== currentContract;
+
+  const syncLeftToRight = () => {
+    if (!leftPanelRef.current || !rightPanelRef.current) return;
+    const rightEl = rightPanelRef.current;
+    const leftEl = leftPanelRef.current;
+
+    const rightMax = rightEl.scrollHeight - rightEl.clientHeight;
+    const leftMax = leftEl.scrollHeight - leftEl.clientHeight;
+
+    if (rightMax <= 0 || leftMax <= 0) return;
+
+    const ratio = rightEl.scrollTop / rightMax;
+    const nextLeftTop = Math.max(0, Math.min(leftMax, ratio * leftMax));
+    syncingRef.current = true;
+    leftEl.scrollTop = nextLeftTop;
+  };
+
+  const handleRightScroll = () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      syncLeftToRight();
+      requestAnimationFrame(() => {
+        syncingRef.current = false;
+      });
+    });
+  };
 
   useEffect(() => {
     if (hasChanges) {
@@ -21,6 +51,12 @@ export const ComparisonView = ({ originalContract, currentContract, fileName }: 
       setDiffHtml(html);
     }
   }, [originalContract, currentContract, hasChanges]);
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   const paragraphs = originalContract.split('\n\n');
   const currentParagraphs = currentContract.split('\n\n');
@@ -52,7 +88,8 @@ export const ComparisonView = ({ originalContract, currentContract, fileName }: 
                 </h3>
               </div>
               <div
-                className="flex-1 overflow-y-auto p-6 space-y-4"
+                ref={leftPanelRef}
+                className="flex-1 overflow-y-auto overscroll-contain p-6 space-y-4"
               >
                 {paragraphs.map((para, index) => (
                   <p
@@ -77,7 +114,9 @@ export const ComparisonView = ({ originalContract, currentContract, fileName }: 
                 </h3>
               </div>
               <div
-                className="flex-1 overflow-y-auto p-6 diff"
+                ref={rightPanelRef}
+                onScroll={handleRightScroll}
+                className="flex-1 overflow-y-auto overscroll-contain p-6 diff"
                 dangerouslySetInnerHTML={{ __html: diffHtml }}
               />
             </div>
