@@ -10,3 +10,12 @@ export interface ExportOptions {
   format: 'docx' | 'pdf' | 'txt';
   includeTrackChanges: boolean;
 }
+
+export interface ContractBlock {
+  id: string;
+  content: string;
+  blockNumber: number;
+  wordCount: number;
+  startIndex: number;
+  endIndex: number;
+}

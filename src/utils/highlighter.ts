@@ -36,15 +36,29 @@ export const escapeRegExp = (string: string): string => {
 
 export const scrollToText = (text: string, containerId: string): void => {
   const container = document.getElementById(containerId);
-  if (!container) return;
+  if (!container) {
+    console.warn(`Container ${containerId} not found`);
+    return;
+  }
 
-  const elements = container.querySelectorAll('*');
+  // Normalize search text for better matching
+  const normalizedSearch = text.trim().replace(/\s+/g, ' ').toLowerCase();
+
+  const elements = container.querySelectorAll('p, div, span');
   for (const element of Array.from(elements)) {
-    if (element.textContent?.includes(text)) {
-      const elementRect = (element as HTMLElement).offsetTop;
+    const elementText = element.textContent?.trim().replace(/\s+/g, ' ').toLowerCase();
+
+    if (elementText?.includes(normalizedSearch)) {
+      const elementTop = (element as HTMLElement).offsetTop;
       const containerHeight = container.clientHeight;
-      const targetScroll = elementRect - containerHeight / 2;
-      container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
+      const targetScroll = elementTop - (containerHeight / 3); // Position at 1/3 from top
+
+      container.scrollTo({
+        top: Math.max(0, targetScroll),
+        behavior: 'smooth'
+      });
+
+      console.log('✓ Scrolled to:', normalizedSearch.substring(0, 50));
       break;
     }
   }

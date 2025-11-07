@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, ReactNode, useCallback, useEffect } from 'react';
 import { Finding } from '@/types/finding.types';
-import { ParsedDocument } from '@/types/document.types';
+import { ParsedDocument, ContractBlock } from '@/types/document.types';
 import { saveState, loadState } from '@/utils/state.utils';
 import { contractReducer, initialState } from '@/reducers/contractReducer';
 
@@ -15,6 +15,9 @@ export interface AppState { // Exporting for use in state.utils
   previousState: { contract: string; findings: Finding[] } | null;
   viewMode: 'analysis' | 'comparison';
   customInstructions: string;
+  contractBlocks: ContractBlock[];
+  selectedBlockId: string | null;
+  isScrollAnimating: boolean;
 }
 
 export type Action =
@@ -31,6 +34,9 @@ export type Action =
   | { type: 'INCREMENT_REFINEMENT_COUNT'; payload: string }
   | { type: 'SET_VIEW_MODE'; payload: 'analysis' | 'comparison' }
   | { type: 'SET_CUSTOM_INSTRUCTIONS'; payload: string }
+  | { type: 'SET_CONTRACT_BLOCKS'; payload: ContractBlock[] }
+  | { type: 'SET_SELECTED_BLOCK'; payload: string | null }
+  | { type: 'SET_SCROLL_ANIMATING'; payload: boolean }
   | { type: 'RESET_STATE' };
 
 
@@ -49,6 +55,9 @@ interface ContractContextType {
   incrementRefinementCount: (id: string) => void;
   setViewMode: (mode: 'analysis' | 'comparison') => void;
   setCustomInstructions: (instructions: string) => void;
+  setContractBlocks: (blocks: ContractBlock[]) => void;
+  setSelectedBlock: (blockId: string | null) => void;
+  setScrollAnimating: (isAnimating: boolean) => void;
   resetState: () => void;
 }
 
@@ -113,6 +122,18 @@ export function ContractProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_CUSTOM_INSTRUCTIONS', payload: instructions });
   }, []);
 
+  const setContractBlocks = useCallback((blocks: ContractBlock[]) => {
+    dispatch({ type: 'SET_CONTRACT_BLOCKS', payload: blocks });
+  }, []);
+
+  const setSelectedBlock = useCallback((blockId: string | null) => {
+    dispatch({ type: 'SET_SELECTED_BLOCK', payload: blockId });
+  }, []);
+
+  const setScrollAnimating = useCallback((isAnimating: boolean) => {
+    dispatch({ type: 'SET_SCROLL_ANIMATING', payload: isAnimating });
+  }, []);
+
   const resetState = useCallback(() => {
     dispatch({ type: 'RESET_STATE' });
   }, []);
@@ -134,6 +155,9 @@ export function ContractProvider({ children }: { children: ReactNode }) {
         incrementRefinementCount,
         setViewMode,
         setCustomInstructions,
+        setContractBlocks,
+        setSelectedBlock,
+        setScrollAnimating,
         resetState,
       }}
     >

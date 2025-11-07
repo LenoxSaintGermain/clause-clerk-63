@@ -12,6 +12,9 @@ export const initialState: AppState = {
   previousState: null,
   viewMode: 'analysis',
   customInstructions: '',
+  contractBlocks: [],
+  selectedBlockId: null,
+  isScrollAnimating: false,
 };
 
 export function contractReducer(state: AppState, action: Action): AppState {
@@ -156,6 +159,24 @@ export function contractReducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         customInstructions: action.payload,
+      };
+
+    case 'SET_CONTRACT_BLOCKS':
+      return {
+        ...state,
+        contractBlocks: action.payload,
+      };
+
+    case 'SET_SELECTED_BLOCK':
+      return {
+        ...state,
+        selectedBlockId: action.payload,
+      };
+
+    case 'SET_SCROLL_ANIMATING':
+      return {
+        ...state,
+        isScrollAnimating: action.payload,
       };
 
     case 'RESET_STATE':

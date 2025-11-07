@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ContractProvider, useContract } from '@/contexts/ContractContext';
 import { FileUploader } from '@/components/FileUploader';
-import { ContractViewer } from '@/components/ContractViewer';
+import { BlockedContractViewer } from '@/components/BlockedContractViewer';
 import { ComparisonView } from '@/components/ComparisonView';
 import { AnalysisPanel } from '@/components/AnalysisPanel';
 import { GemSelector } from '@/components/GemSelector';
@@ -29,6 +29,8 @@ const IndexContent = () => {
     undoAcceptAll,
     updateFindingRedline,
     setViewMode,
+    setContractBlocks,
+    setSelectedBlock,
     resetState,
   } = useContract();
 
@@ -280,10 +282,12 @@ const IndexContent = () => {
           </div>
         ) : state.viewMode === 'analysis' ? (
           <div className="grid lg:grid-cols-[40%_1fr] gap-6 h-full">
-            <ContractViewer
+            <BlockedContractViewer
               text={state.currentContract}
               fileName={state.document.fileName}
               highlightedText={state.highlightedText}
+              selectedBlockId={state.selectedBlockId}
+              onBlocksGenerated={setContractBlocks}
             />
             <AnalysisPanel
               findings={state.findings}
