@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { diffService } from '@/services/diff.service';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { FileText, GitCompare } from 'lucide-react';
@@ -12,9 +12,6 @@ interface ComparisonViewProps {
 
 export const ComparisonView = ({ originalContract, currentContract, fileName }: ComparisonViewProps) => {
   const [diffHtml, setDiffHtml] = useState('');
-  const leftPanelRef = useRef<HTMLDivElement>(null);
-  const rightPanelRef = useRef<HTMLDivElement>(null);
-  const isScrollingSyncRef = useRef(false);
 
   const hasChanges = originalContract !== currentContract;
 
@@ -24,22 +21,6 @@ export const ComparisonView = ({ originalContract, currentContract, fileName }: 
       setDiffHtml(html);
     }
   }, [originalContract, currentContract, hasChanges]);
-
-  const handleScroll = (source: 'left' | 'right') => (e: React.UIEvent<HTMLDivElement>) => {
-    if (isScrollingSyncRef.current) {
-      isScrollingSyncRef.current = false;
-      return;
-    }
-
-    const sourceElement = e.target as HTMLDivElement;
-    const targetElement = source === 'left' ? rightPanelRef.current : leftPanelRef.current;
-
-    if (targetElement && sourceElement.scrollHeight > sourceElement.clientHeight) {
-      const scrollPercentage = sourceElement.scrollTop / (sourceElement.scrollHeight - sourceElement.clientHeight);
-      isScrollingSyncRef.current = true;
-      targetElement.scrollTop = scrollPercentage * (targetElement.scrollHeight - targetElement.clientHeight);
-    }
-  };
 
   const paragraphs = originalContract.split('\n\n');
   const currentParagraphs = currentContract.split('\n\n');
@@ -71,8 +52,6 @@ export const ComparisonView = ({ originalContract, currentContract, fileName }: 
                 </h3>
               </div>
               <div
-                ref={leftPanelRef}
-                onScroll={handleScroll('left')}
                 className="flex-1 overflow-y-auto p-6 space-y-4"
               >
                 {paragraphs.map((para, index) => (
@@ -98,8 +77,6 @@ export const ComparisonView = ({ originalContract, currentContract, fileName }: 
                 </h3>
               </div>
               <div
-                ref={rightPanelRef}
-                onScroll={handleScroll('right')}
                 className="flex-1 overflow-y-auto p-6 diff"
                 dangerouslySetInnerHTML={{ __html: diffHtml }}
               />
