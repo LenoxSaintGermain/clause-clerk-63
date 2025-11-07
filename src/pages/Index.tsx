@@ -270,7 +270,7 @@ const IndexContent = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 flex-1 overflow-y-hidden">
+      <main className="container mx-auto px-4 py-6 flex-1">
         {!state.document ? (
           <div className="max-w-2xl mx-auto">
             <FileUploader
