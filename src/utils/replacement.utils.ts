@@ -5,7 +5,7 @@
  * @param n The occurrence index (0-based).
  * @returns The starting index of the Nth occurrence, or -1 if not found.
  */
-const nthIndexOf = (str: string, substr: string, n: number): number => {
+export const nthIndexOf = (str: string, substr: string, n: number): number => {
   let i = -1;
   while (n-- >= 0 && i++ < str.length) {
     i = str.indexOf(substr, i);

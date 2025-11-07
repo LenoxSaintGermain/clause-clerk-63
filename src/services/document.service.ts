@@ -34,6 +34,37 @@ class DocumentService {
   private getFileExtension(fileName: string): string {
     return fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
   }
+
+  async exportToDocx(originalText: string, findings: { original: string; replacement: string }[]): Promise<Blob> {
+    const { Document, Paragraph, TextRun } = await import('docx');
+    
+    let text = originalText;
+    findings.forEach(({ original, replacement }) => {
+      text = text.replace(original, replacement);
+    });
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: text.split('\n').map(line => 
+          new Paragraph({
+            children: [new TextRun(line)]
+          })
+        )
+      }]
+    });
+
+    const { Packer } = await import('docx');
+    return await Packer.toBlob(doc);
+  }
+
+  async exportToText(originalText: string, findings: { original: string; replacement: string }[]): Promise<string> {
+    let text = originalText;
+    findings.forEach(({ original, replacement }) => {
+      text = text.replace(original, replacement);
+    });
+    return text;
+  }
 }
 
 export const documentService = new DocumentService();
