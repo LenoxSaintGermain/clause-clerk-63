@@ -2,16 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { ContractProvider, useContract } from '@/contexts/ContractContext';
 import { FileUploader } from '@/components/FileUploader';
 import { ContractViewer } from '@/components/ContractViewer';
+import { ComparisonView } from '@/components/ComparisonView';
 import { AnalysisPanel } from '@/components/AnalysisPanel';
 import { GemSelector } from '@/components/GemSelector';
 import { ExportMenu } from '@/components/ExportMenu';
 import { ApiKeyDialog } from '@/components/ApiKeyDialog';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { geminiService, GemPreset } from '@/services/gemini.service';
 import { documentService } from '@/services/document.service';
 import { downloadFile, exportToPdf } from '@/utils/export.utils';
 import { toast } from 'sonner';
-import { Sparkles, Scale } from 'lucide-react';
+import { Sparkles, Scale, GitCompare, FileText } from 'lucide-react';
 
 const IndexContent = () => {
   const {
@@ -26,6 +28,7 @@ const IndexContent = () => {
     acceptAllFindings,
     undoAcceptAll,
     updateFindingRedline,
+    setViewMode,
   } = useContract();
 
   const [selectedGem, setSelectedGem] = useState<GemPreset>('balanced');
@@ -214,6 +217,20 @@ const IndexContent = () => {
 
             {state.document && (
               <div className="flex items-center gap-3">
+                {state.findings.length > 0 && (
+                  <Tabs value={state.viewMode} onValueChange={(v) => setViewMode(v as 'analysis' | 'comparison')}>
+                    <TabsList>
+                      <TabsTrigger value="analysis" disabled={state.isAnalyzing}>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Analysis
+                      </TabsTrigger>
+                      <TabsTrigger value="comparison" disabled={state.isAnalyzing}>
+                        <GitCompare className="w-4 h-4 mr-2" />
+                        Comparison
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                )}
                 <GemSelector
                   selectedGem={selectedGem}
                   onSelect={setSelectedGem}
@@ -246,7 +263,7 @@ const IndexContent = () => {
               isProcessing={state.isAnalyzing}
             />
           </div>
-        ) : (
+        ) : state.viewMode === 'analysis' ? (
           <div className="grid lg:grid-cols-[40%_1fr] gap-6 h-[calc(100vh-180px)]">
             <ContractViewer
               text={state.currentContract}
@@ -265,6 +282,12 @@ const IndexContent = () => {
               onUndo={undoAcceptAll}
             />
           </div>
+        ) : (
+          <ComparisonView
+            originalContract={state.originalContract}
+            currentContract={state.currentContract}
+            fileName={state.document.fileName}
+          />
         )}
       </main>
 

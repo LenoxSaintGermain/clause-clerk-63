@@ -104,4 +104,23 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Diff highlighting styles */
+  .diff ins {
+    background-color: hsl(var(--success) / 0.2);
+    color: hsl(var(--success));
+    text-decoration: none;
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-weight: 500;
+  }
+
+  .diff del {
+    background-color: hsl(var(--destructive) / 0.2);
+    color: hsl(var(--destructive));
+    text-decoration: line-through;
+    padding: 2px 4px;
+    border-radius: 2px;
+    opacity: 0.8;
+  }
 }
