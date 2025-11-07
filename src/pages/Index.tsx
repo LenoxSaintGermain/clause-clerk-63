@@ -211,7 +211,7 @@ const IndexContent = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen flex flex-col bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
@@ -270,7 +270,7 @@ const IndexContent = () => {
       </header>
 
       {/* Main Content */}
-      <main className={`container mx-auto px-4 py-6 ${state.document ? 'overflow-hidden' : ''}`}>
+      <main className="container mx-auto px-4 py-6 flex-1 overflow-y-hidden">
         {!state.document ? (
           <div className="max-w-2xl mx-auto">
             <FileUploader
@@ -279,7 +279,7 @@ const IndexContent = () => {
             />
           </div>
         ) : state.viewMode === 'analysis' ? (
-          <div className="grid lg:grid-cols-[40%_1fr] gap-6 h-[calc(100vh-180px)]">
+          <div className="grid lg:grid-cols-[40%_1fr] gap-6 h-full">
             <ContractViewer
               text={state.currentContract}
               fileName={state.document.fileName}
