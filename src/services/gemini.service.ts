@@ -91,11 +91,18 @@ RESPONSE FORMAT (strict JSON):
         suggestedRedline: string;
       }>;
 
-      return findings.map(finding => ({
-        ...finding,
-        id: uuidv4(),
-        status: 'pending' as const
-      }));
+      const occurrenceMap = new Map<string, number>();
+
+      return findings.map(finding => {
+        const count = occurrenceMap.get(finding.originalText) || 0;
+        occurrenceMap.set(finding.originalText, count + 1);
+        return {
+          ...finding,
+          id: uuidv4(),
+          status: 'pending' as const,
+          occurrenceIndex: count,
+        };
+      });
     } catch (error) {
       if (error instanceof Error) {
         if (error.message.includes('API key')) {

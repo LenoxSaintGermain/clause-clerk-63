@@ -1,8 +1,10 @@
-import { createContext, useContext, useReducer, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useReducer, ReactNode, useCallback, useEffect } from 'react';
 import { Finding } from '@/types/finding.types';
 import { ParsedDocument } from '@/types/document.types';
+import { saveState, loadState } from '@/utils/state.utils';
+import { contractReducer, initialState } from '@/reducers/contractReducer';
 
-interface AppState {
+export interface AppState { // Exporting for use in state.utils
   originalContract: string;
   currentContract: string;
   document: ParsedDocument | null;
@@ -15,7 +17,7 @@ interface AppState {
   customInstructions: string;
 }
 
-type Action =
+export type Action =
   | { type: 'SET_DOCUMENT'; payload: ParsedDocument }
   | { type: 'SET_FINDINGS'; payload: Finding[] }
   | { type: 'SET_ANALYZING'; payload: boolean }
@@ -28,63 +30,17 @@ type Action =
   | { type: 'UPDATE_FINDING_REDLINE'; payload: { id: string; redline: string } }
   | { type: 'INCREMENT_REFINEMENT_COUNT'; payload: string }
   | { type: 'SET_VIEW_MODE'; payload: 'analysis' | 'comparison' }
-  | { type: 'SET_CUSTOM_INSTRUCTIONS'; payload: string };
-
-const initialState: AppState = {
-  originalContract: '',
-  currentContract: '',
-  document: null,
-  findings: [],
-  selectedFindingId: null,
-  isAnalyzing: false,
-  highlightedText: '',
-  previousState: null,
-  viewMode: 'analysis',
-  customInstructions: '',
-};
-
-function contractReducer(state: AppState, action: Action): AppState {
-  switch (action.type) {
-    case 'SET_DOCUMENT':
-      return {
-        ...state,
-        document: action.payload,
-        originalContract: action.payload.text,
-        currentContract: action.payload.text,
-        findings: [],
-      };
-
-    case 'SET_FINDINGS':
-      return {
-        ...state,
-        findings: action.payload,
-      };
-
-    case 'SET_ANALYZING':
-      return {
-        ...state,
-        isAnalyzing: action.payload,
-      };
-
-    case 'SET_HIGHLIGHTED_TEXT':
-      return {
-        ...state,
-        highlightedText: action.payload,
-      };
-
-    case 'SET_SELECTED_FINDING':
-      return {
-        ...state,
-        selectedFindingId: action.payload,
-      };
-
+  | { type: 'SET_CUSTOM_INSTRUCTIONS'; payload: string }
+  | { type: 'RESET_STATE' };
     case 'ACCEPT_FINDING': {
       const finding = state.findings.find(f => f.id === action.payload.id);
       if (!finding) return state;
 
-      const updatedContract = state.currentContract.replace(
+      const updatedContract = replaceNthOccurrence(
+        state.currentContract,
         finding.originalText,
-        action.payload.redline
+        action.payload.redline,
+        finding.occurrenceIndex
       );
 
       return {
@@ -107,7 +63,6 @@ function contractReducer(state: AppState, action: Action): AppState {
       };
 
     case 'ACCEPT_ALL_FINDINGS': {
-      // Save current state for undo
       const previousState = {
         contract: state.currentContract,
         findings: state.findings,
@@ -116,11 +71,27 @@ function contractReducer(state: AppState, action: Action): AppState {
       let updatedContract = state.currentContract;
       const pendingFindings = state.findings.filter(f => f.status === 'pending');
 
-      // Apply all findings sequentially
-      pendingFindings.forEach(finding => {
-        updatedContract = updatedContract.replace(
+      // To apply replacements correctly, we need to do them in reverse order of appearance.
+      // 1. Find the index of each finding's text.
+      const indexedFindings = pendingFindings.map(finding => {
+        const index = nthIndexOf(
+          updatedContract,
           finding.originalText,
-          finding.suggestedRedline
+          finding.occurrenceIndex
+        );
+        return { ...finding, index };
+      }).filter(f => f.index !== -1); // Filter out findings that weren't found
+
+      // 2. Sort by index in descending order.
+      indexedFindings.sort((a, b) => b.index - a.index);
+
+      // 3. Apply replacements.
+      indexedFindings.forEach(finding => {
+        updatedContract = replaceNthOccurrence(
+          updatedContract,
+          finding.originalText,
+          finding.suggestedRedline,
+          finding.occurrenceIndex
         );
       });
 
@@ -175,6 +146,9 @@ function contractReducer(state: AppState, action: Action): AppState {
         customInstructions: action.payload,
       };
 
+    case 'RESET_STATE':
+      return initialState;
+
     default:
       return state;
   }
@@ -195,12 +169,17 @@ interface ContractContextType {
   incrementRefinementCount: (id: string) => void;
   setViewMode: (mode: 'analysis' | 'comparison') => void;
   setCustomInstructions: (instructions: string) => void;
+  resetState: () => void;
 }
 
 const ContractContext = createContext<ContractContextType | undefined>(undefined);
 
 export function ContractProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(contractReducer, initialState);
+  const [state, dispatch] = useReducer(contractReducer, loadState() || initialState);
+
+  useEffect(() => {
+    saveState(state);
+  }, [state]);
 
   const setDocument = useCallback((document: ParsedDocument) => {
     dispatch({ type: 'SET_DOCUMENT', payload: document });
@@ -254,6 +233,10 @@ export function ContractProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_CUSTOM_INSTRUCTIONS', payload: instructions });
   }, []);
 
+  const resetState = useCallback(() => {
+    dispatch({ type: 'RESET_STATE' });
+  }, []);
+
   return (
     <ContractContext.Provider
       value={{
@@ -271,6 +254,7 @@ export function ContractProvider({ children }: { children: ReactNode }) {
         incrementRefinementCount,
         setViewMode,
         setCustomInstructions,
+        resetState,
       }}
     >
       {children}

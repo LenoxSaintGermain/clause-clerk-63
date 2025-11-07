@@ -29,6 +29,7 @@ const IndexContent = () => {
     undoAcceptAll,
     updateFindingRedline,
     setViewMode,
+    resetState,
   } = useContract();
 
   const [selectedGem, setSelectedGem] = useState<GemPreset>('balanced');
@@ -248,6 +249,12 @@ const IndexContent = () => {
                   onExport={handleExport}
                   disabled={state.findings.filter(f => f.status === 'accepted').length === 0}
                 />
+                <Button
+                  variant="outline"
+                  onClick={resetState}
+                >
+                  New Contract
+                </Button>
               </div>
             )}
           </div>

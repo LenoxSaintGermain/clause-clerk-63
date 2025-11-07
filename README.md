@@ -70,4 +70,25 @@ Yes, you can!
 
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+### Gemini API Key
+
+This application requires a Google Gemini API key to function. You will be prompted to enter your key when you first use the application.
+
+**Security Note:** For development purposes, the API key is stored in `localStorage`. For a production environment, it is strongly recommended to use environment variables and a backend proxy to avoid exposing your API key on the client-side.
+
