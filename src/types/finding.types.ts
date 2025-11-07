@@ -4,6 +4,7 @@ export interface Finding {
   risk: string;
   suggestedRedline: string;
   status: 'pending' | 'accepted' | 'dismissed';
+  refinementCount?: number;
 }
 
 export type FindingStatus = Finding['status'];

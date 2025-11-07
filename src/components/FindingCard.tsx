@@ -32,6 +32,7 @@ export const FindingCard = ({
   const [isAccepting, setIsAccepting] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     setEditedRedline(finding.suggestedRedline);
@@ -42,6 +43,29 @@ export const FindingCard = ({
       textareaRef.current.focus();
     }
   }, [isEditing]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleEditChange = (value: string) => {
+    setEditedRedline(value);
+    
+    // Debounce the update callback
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    debounceTimerRef.current = setTimeout(() => {
+      if (value.trim() && value !== finding.suggestedRedline) {
+        onUpdateRedline(finding.id, value);
+      }
+    }, 500);
+  };
 
   const handleRefine = async () => {
     const instruction = window.prompt(
@@ -63,6 +87,7 @@ export const FindingCard = ({
         instruction.trim()
       );
       setEditedRedline(refined);
+      const newCount = (finding.refinementCount || 0) + 1;
       onUpdateRedline(finding.id, refined);
       toast.success('Redline refined successfully');
     } catch (error) {
@@ -115,11 +140,16 @@ export const FindingCard = ({
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
             <Badge variant="secondary" className="font-normal">
               Risk Identified
             </Badge>
+            {finding.refinementCount && finding.refinementCount > 0 && (
+              <Badge variant="outline" className="text-xs">
+                Refined {finding.refinementCount}x
+              </Badge>
+            )}
           </div>
           {finding.status === 'accepted' && (
             <Badge className="bg-success text-white">
@@ -163,7 +193,7 @@ export const FindingCard = ({
               <Textarea
                 ref={textareaRef}
                 value={editedRedline}
-                onChange={(e) => setEditedRedline(e.target.value)}
+                onChange={(e) => handleEditChange(e.target.value)}
                 className="min-h-[100px] text-sm border-accent focus:ring-accent"
               />
             </>

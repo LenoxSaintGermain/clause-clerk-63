@@ -11,6 +11,8 @@ interface AppState {
   isAnalyzing: boolean;
   highlightedText: string;
   previousState: { contract: string; findings: Finding[] } | null;
+  viewMode: 'analysis' | 'comparison';
+  customInstructions: string;
 }
 
 type Action =
@@ -23,7 +25,10 @@ type Action =
   | { type: 'DISMISS_FINDING'; payload: string }
   | { type: 'ACCEPT_ALL_FINDINGS' }
   | { type: 'UNDO_ACCEPT_ALL' }
-  | { type: 'UPDATE_FINDING_REDLINE'; payload: { id: string; redline: string } };
+  | { type: 'UPDATE_FINDING_REDLINE'; payload: { id: string; redline: string } }
+  | { type: 'INCREMENT_REFINEMENT_COUNT'; payload: string }
+  | { type: 'SET_VIEW_MODE'; payload: 'analysis' | 'comparison' }
+  | { type: 'SET_CUSTOM_INSTRUCTIONS'; payload: string };
 
 const initialState: AppState = {
   originalContract: '',
@@ -34,6 +39,8 @@ const initialState: AppState = {
   isAnalyzing: false,
   highlightedText: '',
   previousState: null,
+  viewMode: 'analysis',
+  customInstructions: '',
 };
 
 function contractReducer(state: AppState, action: Action): AppState {
@@ -146,6 +153,28 @@ function contractReducer(state: AppState, action: Action): AppState {
         ),
       };
 
+    case 'INCREMENT_REFINEMENT_COUNT':
+      return {
+        ...state,
+        findings: state.findings.map(f =>
+          f.id === action.payload
+            ? { ...f, refinementCount: (f.refinementCount || 0) + 1 }
+            : f
+        ),
+      };
+
+    case 'SET_VIEW_MODE':
+      return {
+        ...state,
+        viewMode: action.payload,
+      };
+
+    case 'SET_CUSTOM_INSTRUCTIONS':
+      return {
+        ...state,
+        customInstructions: action.payload,
+      };
+
     default:
       return state;
   }
@@ -163,6 +192,9 @@ interface ContractContextType {
   acceptAllFindings: () => void;
   undoAcceptAll: () => void;
   updateFindingRedline: (id: string, redline: string) => void;
+  incrementRefinementCount: (id: string) => void;
+  setViewMode: (mode: 'analysis' | 'comparison') => void;
+  setCustomInstructions: (instructions: string) => void;
 }
 
 const ContractContext = createContext<ContractContextType | undefined>(undefined);
@@ -210,6 +242,18 @@ export function ContractProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'UPDATE_FINDING_REDLINE', payload: { id, redline } });
   }, []);
 
+  const incrementRefinementCount = useCallback((id: string) => {
+    dispatch({ type: 'INCREMENT_REFINEMENT_COUNT', payload: id });
+  }, []);
+
+  const setViewMode = useCallback((mode: 'analysis' | 'comparison') => {
+    dispatch({ type: 'SET_VIEW_MODE', payload: mode });
+  }, []);
+
+  const setCustomInstructions = useCallback((instructions: string) => {
+    dispatch({ type: 'SET_CUSTOM_INSTRUCTIONS', payload: instructions });
+  }, []);
+
   return (
     <ContractContext.Provider
       value={{
@@ -224,6 +268,9 @@ export function ContractProvider({ children }: { children: ReactNode }) {
         acceptAllFindings,
         undoAcceptAll,
         updateFindingRedline,
+        incrementRefinementCount,
+        setViewMode,
+        setCustomInstructions,
       }}
     >
       {children}
