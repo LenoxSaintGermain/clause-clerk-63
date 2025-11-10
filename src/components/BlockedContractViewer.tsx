@@ -38,16 +38,19 @@ export const BlockedContractViewer = ({
     return parsed;
   }, [text, onBlocksGenerated]);
 
-  // Scroll to block when highlighted text changes
+  // Scroll to block when selectedBlockId changes
   useEffect(() => {
-    if (!highlightedText || !containerRef.current || isScrolling) return;
+    if (!selectedBlockId || !containerRef.current || isScrolling) return;
 
-    const targetBlock = findBlockContainingText(blocks, highlightedText);
-    if (!targetBlock) return;
+    console.log('[BlockedContractViewer] Scroll triggered for block:', selectedBlockId);
 
-    const blockElement = blockRefs.current.get(targetBlock.id);
-    if (!blockElement) return;
+    const blockElement = blockRefs.current.get(selectedBlockId);
+    if (!blockElement) {
+      console.warn('[BlockedContractViewer] Block element not found:', selectedBlockId);
+      return;
+    }
 
+    console.log('[BlockedContractViewer] Block element found, starting scroll animation');
     setIsScrolling(true);
 
     // Calculate scroll position
@@ -56,12 +59,20 @@ export const BlockedContractViewer = ({
     const containerHeight = containerRef.current.clientHeight;
     const targetScroll = blockTop - (containerHeight / 3);
 
+    console.log('[BlockedContractViewer] Scroll params:', {
+      containerTop,
+      blockTop,
+      containerHeight,
+      targetScroll: Math.max(0, targetScroll)
+    });
+
     // Animate scroll
     scrollToBlockResponsive(
       containerRef.current,
       Math.max(0, targetScroll),
       isMobile
     ).then(() => {
+      console.log('[BlockedContractViewer] Scroll animation complete');
       setTimeout(() => {
         setIsScrolling(false);
         setPassingBlockIds(new Set());
@@ -69,7 +80,7 @@ export const BlockedContractViewer = ({
     });
 
     // Mark passing blocks during scroll
-    const currentBlockIndex = blocks.findIndex(b => b.id === targetBlock.id);
+    const currentBlockIndex = blocks.findIndex(b => b.id === selectedBlockId);
     const currentVisibleBlock = blocks.find(b => {
       const el = blockRefs.current.get(b.id);
       if (!el) return false;
@@ -87,7 +98,7 @@ export const BlockedContractViewer = ({
       }
       setPassingBlockIds(passing);
     }
-  }, [highlightedText, blocks, isScrolling, isMobile]);
+  }, [selectedBlockId, blocks, isScrolling, isMobile]);
 
   const setBlockRef = (blockId: string) => (el: HTMLDivElement | null) => {
     if (el) {

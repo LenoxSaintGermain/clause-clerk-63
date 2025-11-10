@@ -180,9 +180,27 @@ const IndexContent = () => {
   }, [state.findings, setSelectedFinding, setHighlightedText]);
 
   const handleSelectBlock = useCallback((text: string) => {
+    console.log('[Index] handleSelectBlock called with text:', text.substring(0, 50) + '...');
+    
+    const container = document.getElementById('blocked-contract-viewer');
+    if (!container) {
+      console.error('[Index] Container not found');
+      toast.error('Contract viewer not found');
+      return;
+    }
+
+    console.log('[Index] Container found, scrollable:', {
+      scrollHeight: container.scrollHeight,
+      clientHeight: container.clientHeight,
+      isScrollable: container.scrollHeight > container.clientHeight
+    });
+
     const targetBlock = findBlockContainingText(state.contractBlocks, text);
     if (targetBlock) {
+      console.log('[Index] Target block found:', targetBlock.id);
       setSelectedBlock(targetBlock.id);
+    } else {
+      console.warn('[Index] No block found containing text');
     }
   }, [state.contractBlocks, setSelectedBlock]);
 
