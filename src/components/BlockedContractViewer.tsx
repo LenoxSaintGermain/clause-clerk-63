@@ -40,65 +40,68 @@ export const BlockedContractViewer = ({
 
   // Scroll to block when selectedBlockId changes
   useEffect(() => {
-    if (!selectedBlockId || !containerRef.current || isScrolling) return;
+    if (!selectedBlockId || !containerRef.current) return;
 
     console.log('[BlockedContractViewer] Scroll triggered for block:', selectedBlockId);
 
-    const blockElement = blockRefs.current.get(selectedBlockId);
-    if (!blockElement) {
-      console.warn('[BlockedContractViewer] Block element not found:', selectedBlockId);
-      return;
-    }
-
-    console.log('[BlockedContractViewer] Block element found, starting scroll animation');
-    setIsScrolling(true);
-
-    // Calculate scroll position
-    const containerTop = containerRef.current.scrollTop;
-    const blockTop = blockElement.offsetTop;
-    const containerHeight = containerRef.current.clientHeight;
-    const targetScroll = blockTop - (containerHeight / 3);
-
-    console.log('[BlockedContractViewer] Scroll params:', {
-      containerTop,
-      blockTop,
-      containerHeight,
-      targetScroll: Math.max(0, targetScroll)
-    });
-
-    // Animate scroll
-    scrollToBlockResponsive(
-      containerRef.current,
-      Math.max(0, targetScroll),
-      isMobile
-    ).then(() => {
-      console.log('[BlockedContractViewer] Scroll animation complete');
-      setTimeout(() => {
-        setIsScrolling(false);
-        setPassingBlockIds(new Set());
-      }, 300);
-    });
-
-    // Mark passing blocks during scroll
-    const currentBlockIndex = blocks.findIndex(b => b.id === selectedBlockId);
-    const currentVisibleBlock = blocks.find(b => {
-      const el = blockRefs.current.get(b.id);
-      if (!el) return false;
-      const top = el.offsetTop;
-      return top >= containerTop && top <= containerTop + containerHeight;
-    });
-    const startIndex = blocks.findIndex(b => b.id === currentVisibleBlock?.id);
-
-    if (startIndex !== -1 && currentBlockIndex !== -1) {
-      const passing = new Set<string>();
-      const start = Math.min(startIndex, currentBlockIndex);
-      const end = Math.max(startIndex, currentBlockIndex);
-      for (let i = start; i < end; i++) {
-        passing.add(blocks[i].id);
+    // Small delay to ensure block refs are registered
+    setTimeout(() => {
+      const blockElement = blockRefs.current.get(selectedBlockId);
+      if (!blockElement) {
+        console.warn('[BlockedContractViewer] Block element not found:', selectedBlockId);
+        return;
       }
-      setPassingBlockIds(passing);
-    }
-  }, [selectedBlockId, blocks, isScrolling, isMobile]);
+
+      console.log('[BlockedContractViewer] Block element found, starting scroll animation');
+      setIsScrolling(true);
+
+      // Calculate scroll position
+      const containerTop = containerRef.current!.scrollTop;
+      const blockTop = blockElement.offsetTop;
+      const containerHeight = containerRef.current!.clientHeight;
+      const targetScroll = blockTop - (containerHeight / 3);
+
+      console.log('[BlockedContractViewer] Scroll params:', {
+        containerTop,
+        blockTop,
+        containerHeight,
+        targetScroll: Math.max(0, targetScroll)
+      });
+
+      // Animate scroll
+      scrollToBlockResponsive(
+        containerRef.current!,
+        Math.max(0, targetScroll),
+        isMobile
+      ).then(() => {
+        console.log('[BlockedContractViewer] Scroll animation complete');
+        setTimeout(() => {
+          setIsScrolling(false);
+          setPassingBlockIds(new Set());
+        }, 300);
+      });
+
+      // Mark passing blocks during scroll
+      const currentBlockIndex = blocks.findIndex(b => b.id === selectedBlockId);
+      const currentVisibleBlock = blocks.find(b => {
+        const el = blockRefs.current.get(b.id);
+        if (!el) return false;
+        const top = el.offsetTop;
+        return top >= containerTop && top <= containerTop + containerHeight;
+      });
+      const startIndex = blocks.findIndex(b => b.id === currentVisibleBlock?.id);
+
+      if (startIndex !== -1 && currentBlockIndex !== -1) {
+        const passing = new Set<string>();
+        const start = Math.min(startIndex, currentBlockIndex);
+        const end = Math.max(startIndex, currentBlockIndex);
+        for (let i = start; i < end; i++) {
+          passing.add(blocks[i].id);
+        }
+        setPassingBlockIds(passing);
+      }
+    }, 50);
+  }, [selectedBlockId]);
 
   const setBlockRef = (blockId: string) => (el: HTMLDivElement | null) => {
     if (el) {
