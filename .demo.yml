@@ -1,0 +1,18 @@
+# Demo Catalog metadata — parsed by sync agent
+
+title: Clause Clerk
+
+pitch: AI-powered contract analysis that identifies risky clauses and suggests improvements in seconds
+
+status: draft
+
+category: productivity
+
+platform: lovable
+
+featured: false
+
+demo_video:
+
+cover_prompt: >
+  A split-screen legal document interface with highlighted contract clauses connected by animated arrows to an AI analysis panel showing findings and recommendations
